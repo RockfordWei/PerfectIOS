@@ -26,12 +26,18 @@ let czLibExcludes: [String] = [
 
 let package = Package(
     name: "Perfect",
+    platforms: [
+        .iOS(.v13),
+        .macOS(.v10_15)
+    ],
     products: [
+        .library(name: "PerfectCRUD", targets: ["PerfectCRUD"]),
         .library(name: "PerfectCrypto", targets: ["PerfectCrypto"]),
         .library(name: "PerfectLib", targets: ["PerfectLib"]),
         .library(name: "PerfectHTTP", targets: ["PerfectHTTP"]),
         .library(name: "PerfectHTTPServer", targets: ["PerfectHTTPServer"]),
         .library(name: "PerfectNet", targets: ["PerfectNet"]),
+        .library(name: "PerfectSQLite", targets: ["PerfectSQLite"]),
         .library(name: "PerfectThread", targets: ["PerfectThread"])
     ],
     dependencies: [ ],
@@ -39,17 +45,20 @@ let package = Package(
         .target(name: "COpenSSL"),
         .target(name: "PerfectCZlib", exclude: czLibExcludes),
         .target(name: "PerfectCHTTPParser"),
+        .target(name: "PerfectCRUD"),
         .target(name: "PerfectLib"),
         .target(name: "PerfectThread"),
         .target(name: "PerfectCrypto", dependencies: ["PerfectLib", "PerfectThread", "COpenSSL"]),
         .target(name: "PerfectHTTP", dependencies: ["PerfectLib", "PerfectNet"]),
         .target(name: "PerfectHTTPServer", dependencies: ["PerfectCHTTPParser", "PerfectNet", "PerfectHTTP", "PerfectCZlib"]),
         .target(name: "PerfectNet", dependencies: ["PerfectCrypto", "PerfectThread"]),
+        .target(name: "PerfectSQLite", dependencies: ["PerfectCRUD"]),
         .testTarget(name: "PerfectCryptoTests", dependencies: ["PerfectCrypto"]),
         .testTarget(name: "PerfectHTTPTests", dependencies: ["PerfectHTTP"]),
         .testTarget(name: "PerfectHTTPServerTests", dependencies: ["PerfectHTTPServer"]),
         .testTarget(name: "PerfectLibTests", dependencies: ["PerfectLib"]),
         .testTarget(name: "PerfectNetTests", dependencies: ["PerfectNet"]),
+        .testTarget(name: "PerfectSQLiteTests", dependencies: ["PerfectSQLite"]),
         .testTarget(name: "PerfectThreadTests", dependencies: ["PerfectThread"])
     ]
 )

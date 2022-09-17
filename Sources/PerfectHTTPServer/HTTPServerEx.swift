@@ -12,6 +12,60 @@ import PerfectNet
 import PerfectLib
 import Foundation
 
+public struct TLSConfiguration {
+	public static var defaultCipherList = [
+		"ECDHE-ECDSA-AES256-GCM-SHA384",
+		"ECDHE-ECDSA-AES128-GCM-SHA256",
+		"ECDHE-ECDSA-AES256-CBC-SHA384",
+		"ECDHE-ECDSA-AES256-CBC-SHA",
+		"ECDHE-ECDSA-AES128-CBC-SHA256",
+		"ECDHE-ECDSA-AES128-CBC-SHA",
+		"ECDHE-RSA-AES256-GCM-SHA384",
+		"ECDHE-RSA-AES128-GCM-SHA256",
+		"ECDHE-RSA-AES256-CBC-SHA384",
+		"ECDHE-RSA-AES128-CBC-SHA256",
+		"ECDHE-RSA-AES128-CBC-SHA",
+		"ECDHE-RSA-AES256-SHA384",
+		"ECDHE-ECDSA-AES256-SHA384",
+		"ECDHE-RSA-AES256-SHA",
+		"ECDHE-ECDSA-AES256-SHA"]
+
+	public var certPath: String { return cert }
+	public var keyPath: String? { return key }
+	public let cert: String
+	public let key: String?
+	public let caCertPath: String?
+	public let certVerifyMode: OpenSSLVerifyMode?
+	public let cipherList: [String]
+	public let alpnSupport: [HTTPServer.ALPNSupport]
+
+	/// Initialize a new struct with the desired TLS settings.
+	/// The `cert` and `key` parameters can be either a file path or the raw PEM data.
+	public init(cert: String, key: String? = nil,
+	            caCertPath: String? = nil, certVerifyMode: OpenSSLVerifyMode? = nil,
+	            cipherList: [String] = TLSConfiguration.defaultCipherList,
+	            alpnSupport: [HTTPServer.ALPNSupport] = [.http11]) {
+		self.cert = cert
+		self.key = key
+		self.caCertPath = caCertPath
+		self.certVerifyMode = certVerifyMode
+		self.cipherList = cipherList
+		self.alpnSupport = alpnSupport
+	}
+
+	public init(certPath: String, keyPath: String? = nil,
+	            caCertPath: String? = nil, certVerifyMode: OpenSSLVerifyMode? = nil,
+	            cipherList: [String] = TLSConfiguration.defaultCipherList,
+	            alpnSupport: [HTTPServer.ALPNSupport] = [.http11]) {
+		self.init(cert: certPath,
+		          key: keyPath,
+		          caCertPath: caCertPath,
+		          certVerifyMode: certVerifyMode,
+		          cipherList: cipherList,
+		          alpnSupport: alpnSupport)
+	}
+}
+
 private var processRunAs: String?
 
 public extension HTTPServer {
@@ -28,6 +82,7 @@ public extension HTTPServer {
 		public let routes: Routes
 		public let requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)]
 		public let responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)]
+		public let tlsConfig: TLSConfiguration?
 
 		var server: HTTPServer {
 			let http = HTTPServer()
@@ -37,6 +92,13 @@ public extension HTTPServer {
 			http.addRoutes(routes)
 			http.setRequestFilters(requestFilters)
 			http.setResponseFilters(responseFilters)
+			if let tls = tlsConfig {
+				http.ssl = (tls.certPath, tls.keyPath ?? tls.certPath)
+				http.caCert = tls.caCertPath
+				http.certVerifyMode = tls.certVerifyMode
+				http.cipherList = tls.cipherList
+				http.alpnSupport = tls.alpnSupport
+			}
 			return http
 		}
 
@@ -47,6 +109,7 @@ public extension HTTPServer {
 			routes = .init()
 			requestFilters = []
 			responseFilters = []
+			tlsConfig = nil
 		}
 
 		public init(name: String, address: String, port: Int, routes: Routes,
@@ -58,12 +121,32 @@ public extension HTTPServer {
 			self.routes = routes
 			self.requestFilters = requestFilters
 			self.responseFilters = responseFilters
+			self.tlsConfig = nil
+		}
+
+		public init(tlsConfig: TLSConfiguration, name: String, address: String, port: Int, routes: Routes,
+		            requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)] = [],
+		            responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)] = []) {
+			self.name = name
+			self.address = address
+			self.port = port
+			self.routes = routes
+			self.requestFilters = requestFilters
+			self.responseFilters = responseFilters
+			self.tlsConfig = tlsConfig
+
 		}
 
 		public init(name: String, port: Int, routes: Routes,
 		            requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)] = [],
 		            responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)] = []) {
 			self.init(name: name, address: "::", port: port, routes: routes, requestFilters: requestFilters, responseFilters: responseFilters)
+		}
+
+		public init(tlsConfig: TLSConfiguration, name: String, port: Int, routes: Routes,
+		            requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)] = [],
+		            responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)] = []) {
+			self.init(tlsConfig: tlsConfig, name: name, address: "::", port: port, routes: routes, requestFilters: requestFilters, responseFilters: responseFilters)
 		}
 
 		public static func server(name: String, port: Int, routes: Routes,
@@ -87,6 +170,18 @@ public extension HTTPServer {
 				.init(method: .head, uri: "/**", handler: sfh.handleRequest)
 				])
 			return HTTPServer.Server(name: name, port: port, routes: routes, requestFilters: requestFilters, responseFilters: responseFilters)
+		}
+
+		public static func secureServer(_ tlsConfig: TLSConfiguration, name: String, port: Int, routes: [Route],
+		                                requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)] = [],
+		                                responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)] = []) -> Server {
+			return HTTPServer.Server(tlsConfig: tlsConfig, name: name, port: port, routes: Routes(routes), requestFilters: requestFilters, responseFilters: responseFilters)
+		}
+
+		public static func secureServer(_ tlsConfig: TLSConfiguration, name: String, port: Int, routes: Routes,
+		                                requestFilters: [(HTTPRequestFilter, HTTPFilterPriority)] = [],
+		                                responseFilters: [(HTTPResponseFilter, HTTPFilterPriority)] = []) -> Server {
+			return HTTPServer.Server(tlsConfig: tlsConfig, name: name, port: port, routes: routes, requestFilters: requestFilters, responseFilters: responseFilters)
 		}
 	}
 }
@@ -114,6 +209,11 @@ public extension HTTPServer {
 
 		init(_ server: Server) {
 			self.server = server
+		}
+
+		init(_ server: HTTPMultiplexer) {
+			self.httpServer = server
+			self.server = server.synthServer
 		}
 
 		@discardableResult
@@ -210,7 +310,28 @@ public extension HTTPServer {
 	}
 
 	static func getLaunchContexts(_ servers: [Server]) throws -> [LaunchContext] {
-		return servers.map { LaunchContext($0) }
+		var notSSL = [Server]()
+		var singleServers = [String: Server]()
+		var multiplexers = [String: HTTPMultiplexer]()
+		for server in servers {
+			if nil != server.tlsConfig {
+				let id = "\(server.address):\(server.port)"
+				if let existingMulti = multiplexers[id] {
+					try existingMulti.addServer(server.server)
+				} else if let existingSingle = singleServers[id] {
+					singleServers.removeValue(forKey: id)
+					let multi = HTTPMultiplexer()
+					try multi.addServer(existingSingle.server)
+					try multi.addServer(server.server)
+					multiplexers[id] = multi
+				} else {
+					singleServers[id] = server
+				}
+			} else {
+				notSSL.append(server)
+			}
+		}
+		return (notSSL + singleServers.values).map { LaunchContext($0) } + multiplexers.values.map { LaunchContext($0) }
 	}
 
 	// launch with array
@@ -267,6 +388,8 @@ private extension HTTPServer.Server {
 		let filters = data["filters"] as? [[String: Any]] ?? []
 		self.requestFilters = try filtersFrom(data: filters)
 		self.responseFilters = try filtersFrom(data: filters)
+
+		self.tlsConfig = TLSConfiguration(data: data["tlsConfig"] as? [String: Any] ?? [:])
 	}
 }
 

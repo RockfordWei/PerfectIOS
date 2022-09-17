@@ -9,6 +9,7 @@ import PerfectHTTP
 import PerfectLib
 import PerfectNet
 import Foundation
+import PerfectCZlib
 
 // HERE BE DRAGONS
 private typealias ReturnsRequestHandlerGivenData = ([String: Any]) throws -> RequestHandler
@@ -123,6 +124,36 @@ private extension Route {
 extension Routes {
 	init(data: [[String: Any]]) throws {
 		self.init(try data.map { try Route(data: $0) })
+	}
+}
+
+extension OpenSSLVerifyMode {
+	init?(string: String) {
+		switch string {
+		case "none": self = .sslVerifyNone
+		case "peer": self = .sslVerifyPeer
+		case "failIfNoPeerCert": self = .sslVerifyFailIfNoPeerCert
+		case "clientOnce": self = .sslVerifyClientOnce
+		case "peerWithFailIfNoPeerCert": self = .sslVerifyPeerWithFailIfNoPeerCert
+		case "peerClientOnce": self = .sslVerifyPeerClientOnce
+		case "peerWithFailIfNoPeerCertClientOnce": self = .sslVerifyPeerWithFailIfNoPeerCertClientOnce
+		default:
+			return nil
+		}
+	}
+}
+
+extension TLSConfiguration {
+	init?(data: [String: Any]) {
+		guard let certPath = data["certPath"] as? String else {
+			return nil
+		}
+		self.init(certPath: certPath,
+		          keyPath: data["keyPath"] as? String,
+		          caCertPath: data["caCertPath"] as? String,
+		          certVerifyMode: OpenSSLVerifyMode(string: data["verifyMode"] as? String ?? ""),
+		          cipherList: data["cipherList"] as? [String] ?? TLSConfiguration.defaultCipherList,
+				  alpnSupport: (data["alpnSupport"] as? [String] ?? []).compactMap { HTTPServer.ALPNSupport(rawValue: $0) })
 	}
 }
 

@@ -52,7 +52,7 @@ open class HTTP2Client {
 		case none, idle, reservedLocal, reservedRemote, open, halfClosedRemote, halfClosedLocal, closed
 	}
 
-	public let net = NetTCP()
+	public let net = NetTCPSSL()
 	var host = ""
 	var timeoutSeconds = 10.0
 	var ssl = true
@@ -243,8 +243,14 @@ open class HTTP2Client {
 		self.ssl = ssl
 		self.timeoutSeconds = timeoutSeconds
 		do {
-			try net.connect(address: hst, port: port, timeoutSeconds: timeoutSeconds) { _ in
-                callback(false)
+			try net.connect(address: hst, port: port, timeoutSeconds: timeoutSeconds) { n in
+				if let net = n as? NetTCPSSL {
+					net.fd.switchToNonBlocking()
+					net.fd.switchToBlocking() // !FIX!
+					self.completeConnect(callback)
+				} else {
+					callback(false)
+				}
 			}
 		} catch {
 			callback(false)

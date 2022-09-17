@@ -10,7 +10,6 @@ import PerfectNet
 import PerfectLib
 import PerfectThread
 import PerfectHTTP
-import Foundation
 
 // !FIX! need a better scheme for this
 let receiveWindowLowWater = 10_240
@@ -342,7 +341,7 @@ extension HTTP2Session {
 			let lastStreamId = b.export32Bits().netToHost
 			let errorCode = b.export32Bits().netToHost
 			let remainingBytes = b.exportBytes(count: b.availableExportBytes)
-            let errorStr = String(data: Data(remainingBytes), encoding: .utf8)
+			let errorStr = String(validatingUTF8: remainingBytes)
 			if debug {
 				print("Bye: last stream: \(lastStreamId) \(HTTP2Error(rawValue: errorCode)?.rawValue ?? 0) \(errorStr ?? "")")
 			}

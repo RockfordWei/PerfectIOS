@@ -848,6 +848,11 @@ class PerfectHTTPServerTests: XCTestCase {
 						["method": "get", "uri": "/test.png", "handler": handler2]
 					],
 					"filters": [
+						[
+							"type": "response",
+							"priority": "high",
+							"name": PerfectHTTPServer.HTTPFilter.contentCompression
+						]
 					]
 				]
 			]

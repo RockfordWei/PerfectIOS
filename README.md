@@ -27,7 +27,7 @@ This guide is designed for developers at all levels of experience to get Perfect
 
 ## PerfectIOS
 
-PerfectIOS is a lightweight httpd/web server designed for iOS unit test, currently no SSL support.
+PerfectIOS is a lightweight httpd/web server designed for iOS unit test.
 
 [Access a tutorial](https://github.com/PerfectlySoft/PerfectDocs/blob/master/guide/gettingStarted.md) to help you get started using Perfect quickly. It includes straightforward examples of how Perfect can be used.
 

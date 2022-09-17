@@ -25,6 +25,24 @@ import Foundation
 import LinuxBridge
 #endif
 
+import COpenSSL
+
+// swiftlint:disable syntactic_sugar
+extension String.UTF8View {
+	var sha1: [UInt8] {
+		let bytes = UnsafeMutablePointer<UInt8>.allocate(capacity: Int(SHA_DIGEST_LENGTH))
+		defer { bytes.deallocate() }
+
+		SHA1(Array<UInt8>(self), (self.count), bytes)
+
+		var r = [UInt8]()
+		for idx in 0..<Int(SHA_DIGEST_LENGTH) {
+			r.append(bytes[idx])
+		}
+		return r
+	}
+}
+
 extension UInt8 {
 	// same as String(self, radix: 16)
 	// but outputs two characters. i.e. 0 padded
@@ -108,6 +126,10 @@ public struct StaticFileHandler {
 	func shouldSkipSendfile(response: HTTPResponse) -> Bool {
 		if self.allowResponseFilters {
 			return true
+		}
+		// can not use sendfile for SSL requests
+		if let sslCon = response.request.connection as? NetTCPSSL {
+			return sslCon.usingSSL
 		}
 		return false
 	}
@@ -198,7 +220,10 @@ public struct StaticFileHandler {
 
 	func getETag(file: File) -> String {
 		let eTagStr = file.path + "\(file.modificationTime)"
-        return SHA1.hexString(from: eTagStr) ?? "sha1-fault"
+		let eTag = eTagStr.utf8.sha1
+		let eTagReStr = eTag.map { $0.hexString }.joined(separator: "")
+
+		return eTagReStr
 	}
 
 	func addETag(response: HTTPResponse, file: File) {

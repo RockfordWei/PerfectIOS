@@ -21,7 +21,6 @@ import PerfectHTTP
 import PerfectNet
 import PerfectLib
 import PerfectThread
-import Foundation
 
 final class HTTP2Request: HTTPRequest, HeaderListener {
 	var method: HTTPMethod = .get
@@ -290,11 +289,10 @@ final class HTTP2Request: HTTPRequest, HeaderListener {
 
 	// scheme, authority
 	func addHeader(name: [UInt8], value: [UInt8], sensitive: Bool) {
-        let n = String(data: Data(name), encoding: .utf8) ?? ""
-        let v = String(data: Data(value), encoding: .utf8) ?? ""
+		let n = String(validatingUTF8: name) ?? ""
 		switch n {
 		case ":method":
-            method = HTTPMethod.from(string: v)
+			method = HTTPMethod.from(string: String(validatingUTF8: value) ?? "")
 		case ":path":
 			(self.pathComponents, self.queryString) = parseURI(pathBuffer: value)
 		case ":scheme":
@@ -304,7 +302,7 @@ final class HTTP2Request: HTTPRequest, HeaderListener {
 		default:
 			let headerName = HTTPRequestHeader.Name.fromStandard(name: n)
 			if headerName == .contentType {
-				let contentType = v
+				let contentType = String(validatingUTF8: value) ?? ""
 				if contentType.starts(with: "multipart/form-data") {
 					self.mimes = MimeReader(contentType)
 				}

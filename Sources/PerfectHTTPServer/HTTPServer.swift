@@ -61,6 +61,25 @@ public class HTTPServer: ServerInstance {
 	/// The canonical server name.
 	/// This is important if utilizing the `HTTPRequest.serverName` property.
 	public var serverName = ""
+	public var ssl: certKeyPair?
+	public var caCert: String?
+	public var certVerifyMode: OpenSSLVerifyMode?
+	public var cipherList = [
+		"ECDHE-ECDSA-AES256-GCM-SHA384",
+		"ECDHE-ECDSA-AES128-GCM-SHA256",
+		"ECDHE-ECDSA-AES256-CBC-SHA384",
+		"ECDHE-ECDSA-AES256-CBC-SHA",
+		"ECDHE-ECDSA-AES128-CBC-SHA256",
+		"ECDHE-ECDSA-AES128-CBC-SHA",
+		"ECDHE-RSA-AES256-GCM-SHA384",
+		"ECDHE-RSA-AES128-GCM-SHA256",
+		"ECDHE-RSA-AES256-CBC-SHA384",
+		"ECDHE-RSA-AES128-CBC-SHA256",
+		"ECDHE-RSA-AES128-CBC-SHA",
+		"ECDHE-RSA-AES256-SHA384",
+		"ECDHE-ECDSA-AES256-SHA384",
+		"ECDHE-RSA-AES256-SHA",
+		"ECDHE-ECDSA-AES256-SHA"]
 
 	var requestFilters = [[HTTPRequestFilter]]()
 	var responseFilters = [[HTTPResponseFilter]]()
@@ -134,11 +153,63 @@ public class HTTPServer: ServerInstance {
 		try self.start()
 	}
 
+	@available(*, deprecated, message: "Set serverPort and ssl directly then call start()")
+	public func start(port: UInt16, sslCert: String, sslKey: String, bindAddress: String = "0.0.0.0") throws {
+		self.serverPort = port
+		self.serverAddress = bindAddress
+		self.ssl = (sslCert: sslCert, sslKey: sslKey)
+		try self.start()
+	}
+
 	/// Bind the server to the designated address/port
 	public func bind() throws {
-        let net = NetTCP()
-        try net.bind(port: serverPort, address: serverAddress)
-        self.net = net
+		if let (cert, key) = ssl {
+			let socket = NetTCPSSL()
+			try socket.bind(port: serverPort, address: serverAddress)
+			socket.cipherList = self.cipherList
+			if let verifyMode = certVerifyMode,
+				let cert = caCert,
+				verifyMode != .sslVerifyNone {
+
+				guard socket.setClientCA(path: cert, verifyMode: verifyMode) else {
+					let code = Int32(socket.errorCode())
+					throw PerfectError.networkError(code, "Error setting clientCA : \(socket.errorStr(forCode: code))")
+				}
+			}
+			let sourcePrefix = "-----BEGIN"
+			if cert.hasPrefix(sourcePrefix) {
+				guard socket.useCertificateChain(cert: cert) else {
+					let code = Int32(socket.errorCode())
+					throw PerfectError.networkError(code, "Error setting certificate chain file: \(socket.errorStr(forCode: code))")
+				}
+			} else {
+				guard socket.useCertificateChainFile(cert: cert) else {
+					let code = Int32(socket.errorCode())
+					throw PerfectError.networkError(code, "Error setting certificate chain file: \(socket.errorStr(forCode: code))")
+				}
+			}
+			if key.hasPrefix(sourcePrefix) {
+				guard socket.usePrivateKey(cert: key) else {
+					let code = Int32(socket.errorCode())
+					throw PerfectError.networkError(code, "Error setting private key file: \(socket.errorStr(forCode: code))")
+				}
+			} else {
+				guard socket.usePrivateKeyFile(cert: key) else {
+					let code = Int32(socket.errorCode())
+					throw PerfectError.networkError(code, "Error setting private key file: \(socket.errorStr(forCode: code))")
+				}
+			}
+			guard socket.checkPrivateKey() else {
+				let code = Int32(socket.errorCode())
+				throw PerfectError.networkError(code, "Error validating private key file: \(socket.errorStr(forCode: code))")
+			}
+			socket.enableALPN(protocols: self.alpnSupport.map { $0.rawValue })
+			self.net = socket
+		} else {
+			let net = NetTCP()
+			try net.bind(port: serverPort, address: serverAddress)
+			self.net = net
+		}
 	}
 
 	/// Start the server. Does not return until the server terminates.
@@ -146,7 +217,11 @@ public class HTTPServer: ServerInstance {
 		if nil == self.net {
 			try bind()
 		}
-		Log.info(message: "Starting HTTP server \(self.serverName) on \(self.serverAddress):\(self.serverPort)")
+		guard let net = self.net else {
+			throw PerfectError.networkError(-1, "The socket was not bound.")
+		}
+		let witess = (net is NetTCPSSL) ? "HTTPS" : "HTTP"
+		Log.info(message: "Starting \(witess) server \(self.serverName) on \(self.serverAddress):\(self.serverPort)")
 		try self.startInner()
 	}
 
@@ -191,6 +266,12 @@ public class HTTPServer: ServerInstance {
 	func handleConnection(_ net: NetTCP) {
 		var flag = 1
 		_ = setsockopt(net.fd.fd, Int32(IPPROTO_TCP), TCP_NODELAY, &flag, UInt32(MemoryLayout<Int32>.size))
+		if let netSSL = net as? NetTCPSSL, let neg = netSSL.alpnNegotiated, neg == ALPNSupport.http2.rawValue {
+			_ = HTTP2PrefaceValidator(net, timeoutSeconds: 5.0) {
+				_ = HTTP2Session(net, server: self)
+			}
+			return
+		}
 		let req = HTTP11Request(connection: net)
 		req.serverName = self.serverName
 		req.readRequest { [weak self] status in

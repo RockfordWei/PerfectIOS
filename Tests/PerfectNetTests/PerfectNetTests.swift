@@ -118,6 +118,52 @@ class PerfectNetTests: XCTestCase {
         }
     }
 
+    func testTCPSSLClient() {
+        let address = "www.treefrog.ca"
+        let requestString = [UInt8](("GET / HTTP/1.0\r\nHost: \(address)\r\n\r\n").utf8)
+        let requestCount = requestString.count
+		let clientExpectation = self.expectation(description: "client")
+        let net = NetTCPSSL()
+        do {
+			try net.connect(address: address, port: 443, timeoutSeconds: 5.0) { net in
+                if let ssl = net as? NetTCPSSL {
+					do {
+						let x509 = ssl.peerCertificate
+						XCTAssert(x509 != nil)
+						let peerKey = x509?.publicKeyBytes
+						XCTAssert(peerKey != nil && peerKey!.count > 0)
+					}
+
+					ssl.write(bytes: requestString) { sent in
+						XCTAssert(sent == requestCount)
+						ssl.readBytesFully(count: 1, timeoutSeconds: 5.0) { readBytes in
+							XCTAssert(readBytes != nil && readBytes!.count > 0)
+							var readBytesCpy = readBytes!
+							readBytesCpy.append(0)
+							let s1 = readBytesCpy.withUnsafeBytes { String(validatingUTF8: $0.bindMemory(to: CChar.self).baseAddress!)! }
+							ssl.readSomeBytes(count: 4096) { readBytes in
+								XCTAssert(readBytes != nil && readBytes!.count > 0)
+								var readBytesCpy = readBytes!
+								readBytesCpy.append(0)
+								let s2 = readBytesCpy.withUnsafeBytes { String(validatingUTF8: $0.bindMemory(to: CChar.self).baseAddress!)! }
+								let s = s1 + s2
+								XCTAssert(s.starts(with: "HTTP/1.1 200 OK"))
+								clientExpectation.fulfill()
+							}
+						}
+                    }
+                } else {
+                    XCTFail("Did not get NetTCPSSL back after connect")
+                }
+            }
+        } catch {
+            XCTFail("Exception thrown")
+        }
+		self.waitForExpectations(timeout: 10000) { _ in
+			net.close()
+		}
+    }
+
 	func testMakeAddress() {
 		do {
 			let r = NetAddress(host: "localhost", port: 80)

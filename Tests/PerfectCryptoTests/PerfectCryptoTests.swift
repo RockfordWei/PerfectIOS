@@ -523,7 +523,7 @@ class PerfectCryptoTests: XCTestCase {
 		}
 	}
 
-    
+    /*
 	func runProc(cmd: String, args: [String]) throws -> String? {
 		#if os(Linux)
 			let command: [String] = [cmd] + args
@@ -576,7 +576,6 @@ class PerfectCryptoTests: XCTestCase {
 		let answer = try openssl(command: by, file: file)
 		XCTAssertEqual(answer, fingerprint)
 	}
-
 	func testFileDigestBy(size: Int, alg: Digest, name: String) throws {
 		let file = File("/tmp/\(name)-\(size).txt")
 		file.delete()
@@ -610,4 +609,5 @@ class PerfectCryptoTests: XCTestCase {
 			XCTFail(error.localizedDescription)
 		}
 	}
+*/
 }

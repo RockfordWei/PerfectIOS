@@ -147,7 +147,7 @@ class PerfectNetTests: XCTestCase {
 								readBytesCpy.append(0)
 								let s2 = readBytesCpy.withUnsafeBytes { String(validatingUTF8: $0.bindMemory(to: CChar.self).baseAddress!)! }
 								let s = s1 + s2
-								XCTAssert(s.starts(with: "HTTP/1.1 200 OK"))
+                                XCTAssert(s.starts(with: "HTTP/") && s.contains(string: "200"))
 								clientExpectation.fulfill()
 							}
 						}

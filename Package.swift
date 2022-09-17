@@ -45,7 +45,7 @@ let package = Package(
         .target(name: "PerfectHTTP", dependencies: ["PerfectLib", "PerfectNet"]),
         .target(name: "PerfectHTTPServer", dependencies: ["PerfectCHTTPParser", "PerfectNet", "PerfectHTTP", "PerfectCZlib"]),
         .target(name: "PerfectNet", dependencies: ["PerfectCrypto", "PerfectThread"]),
-        //.testTarget(name: "PerfectCryptoTests", dependencies: ["PerfectCrypto"]),
+        .testTarget(name: "PerfectCryptoTests", dependencies: ["PerfectCrypto"]),
         .testTarget(name: "PerfectHTTPTests", dependencies: ["PerfectHTTP"]),
         .testTarget(name: "PerfectHTTPServerTests", dependencies: ["PerfectHTTPServer"]),
         .testTarget(name: "PerfectLibTests", dependencies: ["PerfectLib"]),

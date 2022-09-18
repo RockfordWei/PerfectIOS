@@ -36,6 +36,7 @@ let package = Package(
         .library(name: "PerfectLib", targets: ["PerfectLib"]),
         .library(name: "PerfectHTTP", targets: ["PerfectHTTP"]),
         .library(name: "PerfectHTTPServer", targets: ["PerfectHTTPServer"]),
+        .library(name: "PerfectMustache", targets: ["PerfectMustache"]),
         .library(name: "PerfectNet", targets: ["PerfectNet"]),
         .library(name: "PerfectSQLite", targets: ["PerfectSQLite"]),
         .library(name: "PerfectThread", targets: ["PerfectThread"])
@@ -51,12 +52,14 @@ let package = Package(
         .target(name: "PerfectCrypto", dependencies: ["PerfectLib", "PerfectThread", "COpenSSL"]),
         .target(name: "PerfectHTTP", dependencies: ["PerfectLib", "PerfectNet"]),
         .target(name: "PerfectHTTPServer", dependencies: ["PerfectCHTTPParser", "PerfectNet", "PerfectHTTP", "PerfectCZlib"]),
+        .target(name: "PerfectMustache", dependencies: ["PerfectLib"]),
         .target(name: "PerfectNet", dependencies: ["PerfectCrypto", "PerfectThread"]),
         .target(name: "PerfectSQLite", dependencies: ["PerfectCRUD"]),
         .testTarget(name: "PerfectCryptoTests", dependencies: ["PerfectCrypto"]),
         .testTarget(name: "PerfectHTTPTests", dependencies: ["PerfectHTTP"]),
         .testTarget(name: "PerfectHTTPServerTests", dependencies: ["PerfectHTTPServer"]),
         .testTarget(name: "PerfectLibTests", dependencies: ["PerfectLib"]),
+        .testTarget(name: "PerfectMustacheTests", dependencies: ["PerfectMustache"]),
         .testTarget(name: "PerfectNetTests", dependencies: ["PerfectNet"]),
         .testTarget(name: "PerfectSQLiteTests", dependencies: ["PerfectSQLite"]),
         .testTarget(name: "PerfectThreadTests", dependencies: ["PerfectThread"])

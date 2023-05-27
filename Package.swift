@@ -24,9 +24,6 @@ let czLibExcludes: [String] = [
     "zlib.map", "zlib.pc", "zlib.pc.cmakein", "zlib.pc.in", "zlib2ansi"
 ]
 
-let flags: [String] = ["-Wno-conversion"]
-let cSettings = [CSetting.unsafeFlags(flags)]
-
 let package = Package(
     name: "Perfect",
     platforms: [
@@ -46,8 +43,8 @@ let package = Package(
     ],
     dependencies: [ ],
     targets: [
-        .target(name: "COpenSSL", cSettings: cSettings),
-        .target(name: "PerfectCZlib", exclude: czLibExcludes, cSettings: cSettings),
+        .target(name: "COpenSSL"),
+        .target(name: "PerfectCZlib", exclude: czLibExcludes),
         .target(name: "PerfectCHTTPParser"),
         .target(name: "PerfectCRUD"),
         .target(name: "PerfectLib"),
